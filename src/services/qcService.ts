@@ -13,8 +13,15 @@ export async function validateImage(url: string): Promise<boolean> {
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    const timeout = setTimeout(() => resolve(false), 2500);
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timeout);
+      resolve(false);
+    };
     img.src = url;
   });
 }
@@ -35,19 +42,21 @@ export function checkConstraintIntegrity(listing: CarListing, budget: number, ma
 
 export function checkListingValidity(listing: CarListing): QCResult {
   const url = listing.listingUrl?.toLowerCase() || '';
+  const canonicalAutotraderListing = /^https:\/\/(www\.)?autotrader\.co\.uk\/car-details\/\d{12,16}$/i;
   
   if (!url || 
       url === 'https://www.autotrader.co.uk/' ||
       url === 'https://www.motors.co.uk/' ||
       url.includes('/car-search') || 
       url.includes('/used-cars/') ||
-      url.includes('search?')
+      url.includes('search?') ||
+      url.includes('?')
   ) {
     return { passed: false, reason: 'Generic search link' };
   }
 
-  if (url.includes('autotrader.co.uk') && !url.includes('/car-details/')) {
-    return { passed: false, reason: 'Not a specific AutoTrader car detail page' };
+  if (url.includes('autotrader.co.uk') && !canonicalAutotraderListing.test(url)) {
+    return { passed: false, reason: 'Not a canonical AutoTrader car detail page' };
   }
 
   return { passed: true };
@@ -109,46 +118,44 @@ export function validateConfidence(listing: CarListing): CarListing {
 }
 
 export async function runPreOutputQC(listings: CarListing[], budget: number, maxMileage?: number): Promise<CarListing[]> {
-  const passedListings: CarListing[] = [];
-
-  for (const listing of listings) {
+  const checks = listings.map(async (listing) => {
     try {
       // 1. Constraint Integrity
       const constraintCheck = checkConstraintIntegrity(listing, budget, maxMileage);
       if (!constraintCheck.passed) {
         logger.warn('QC Failed: Constraint Integrity', { listing: listing.title, reason: constraintCheck.reason });
-        continue;
+        return null;
       }
 
       // 2. Listing Validity (URL format)
       const validityCheck = checkListingValidity(listing);
       if (!validityCheck.passed) {
         logger.warn('QC Failed: Listing Validity', { listing: listing.title, reason: validityCheck.reason });
-        continue;
+        return null;
       }
 
       // 3. Image Validation
       const isImageValid = await validateImage(listing.imageUrl);
       if (!isImageValid) {
         logger.warn('QC Failed: Image Validation', { listing: listing.title, reason: 'Image failed to load or is placeholder' });
-        continue;
+        return null;
       }
 
       // 4. Vibe Check Consistency
       const vibeCheck = checkVibeConsistency(listing);
       if (!vibeCheck.passed) {
         logger.warn('QC Failed: Vibe Check', { listing: listing.title, reason: vibeCheck.reason });
-        continue;
+        return null;
       }
 
       // 5. Confidence System Validation
-      const validatedListing = validateConfidence(listing);
-
-      passedListings.push(validatedListing);
+      return validateConfidence(listing);
     } catch (error) {
       logger.error('Error during QC check', error, { listing: listing.title });
+      return null;
     }
-  }
+  });
 
-  return passedListings;
+  const results = await Promise.all(checks);
+  return results.filter((listing): listing is CarListing => listing !== null);
 }
