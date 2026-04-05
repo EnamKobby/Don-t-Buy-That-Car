@@ -1,0 +1,5 @@
+{
+  "name": "Don't Buy That Car",
+  "description": "A decision intervention system designed to prevent users from making bad car purchases.",
+  "requestFramePermissions": []
+}
