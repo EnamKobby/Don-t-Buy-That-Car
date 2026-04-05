@@ -11,6 +11,8 @@ const sessionBlacklist = new Set<string>();
 // Simple cache for fetchLiveListings
 const listingsCache = new Map<string, { data: CarListing[], timestamp: number }>();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const AUTOTRADER_DETAIL_REGEX = /^https:\/\/(www\.)?autotrader\.co\.uk\/car-details\/\d{12,16}$/i;
+const AUTOTRADER_IMAGE_HOST_REGEX = /^https?:\/\/([a-z0-9-]+\.)*(atcdn\.co\.uk|autotrader\.co\.uk)\//i;
 
 export function addToBlacklist(listingUrl: string) {
   sessionBlacklist.add(listingUrl);
@@ -22,8 +24,8 @@ function isValidListingUrl(url: string, imageUrl: string): boolean {
     return false;
   }
 
-  if (!url || 
-      url.includes('/car-search') || 
+  if (!url ||
+      url.includes('/car-search') ||
       url.includes('/used-cars/') ||
       url.includes('search?') ||
       url.includes('?') // Reject filter parameters
@@ -31,12 +33,21 @@ function isValidListingUrl(url: string, imageUrl: string): boolean {
     return false;
   }
 
-  // ONLY accept Auto Trader /car-details/
-  if (!url.includes('autotrader.co.uk/car-details/')) {
+  // ONLY accept canonical Auto Trader /car-details/<id>
+  if (!AUTOTRADER_DETAIL_REGEX.test(url)) {
     return false;
   }
 
-  if (!imageUrl || imageUrl.includes('placeholder') || imageUrl.includes('imagin.studio') || imageUrl.includes('logo')) {
+  if (
+    !imageUrl ||
+    imageUrl.includes('placeholder') ||
+    imageUrl.includes('imagin.studio') ||
+    imageUrl.includes('logo')
+  ) {
+    return false;
+  }
+
+  if (!AUTOTRADER_IMAGE_HOST_REGEX.test(imageUrl)) {
     return false;
   }
 
@@ -61,12 +72,13 @@ CRITICAL INSTRUCTIONS:
 1. You MUST use Google Search to find specific, real car listings. HINT: Search for "used ${query} site:autotrader.co.uk/car-details/".
 2. DO NOT return generic search pages or homepages. You MUST return the specific vehicle detail page URL.
    - The URL MUST contain "autotrader.co.uk/car-details/" and MUST NOT contain query parameters like "?".
-3. You MUST extract a real image URL of the specific car. Look closely at the search result snippets for image URLs (e.g., ending in .jpg, hosted on m.atcdn.co.uk for AutoTrader). DO NOT use placeholders or generic logos.
+3. You MUST extract a real image URL of the specific car hosted by Auto Trader CDN (e.g. https://m.atcdn.co.uk/... or https://images.atcdn.co.uk/...). DO NOT use placeholders or generic logos.
 4. Verify the price, mileage, and year from the listing.
 5. Estimate Time on Market: Look for "Listed X days ago", "Added on [date]", JSON-LD, or embedded timestamps. If not found, estimate based on cache/search history.
 6. Constraint Validation: If the listing exceeds the budget of £${budget}, set exceedsBudget to true. If it has high mileage (>100k), set exceedsMileage to true.
 7. Provide tradeoffAdvice if constraints are broken (e.g., "You are £1,500 short OR need to accept ~120k mileage to access this model.").
 8. Provide a short 'adviceSnippet' explaining why this specific car is a good choice.
+9. URL format is mandatory: https://www.autotrader.co.uk/car-details/<NUMERIC_ID>. Do not output anything else.
 
 Return EXACTLY 5 valid listings. We need 5 to ensure we have enough options after strict filtering.`;
 
@@ -104,8 +116,8 @@ Return EXACTLY 5 valid listings. We need 5 to ensure we have enough options afte
     });
 
     // 60 second timeout
-    const timeoutPromise = new Promise<GenerateContentResponse>((_, reject) => 
-      setTimeout(() => reject(new Error("Live listings fetch timed out")), 60000)
+    const timeoutPromise = new Promise<GenerateContentResponse>((_, reject) =>
+      setTimeout(() => reject(new Error("Live listings fetch timed out")), 35000)
     );
 
     const response = await Promise.race([generatePromise, timeoutPromise]);
@@ -129,12 +141,17 @@ Return EXACTLY 5 valid listings. We need 5 to ensure we have enough options afte
       return [];
     }
 
+    const deduped = new Set<string>();
     const preValidatedListings = rawListings.map(raw => {
       const url = raw.listingUrl?.toLowerCase() || '';
-      
+
       if (!isValidListingUrl(url, raw.imageUrl)) {
         return null;
       }
+      if (deduped.has(url)) {
+        return null;
+      }
+      deduped.add(url);
 
       return {
         id: Math.random().toString(36).substring(7),
