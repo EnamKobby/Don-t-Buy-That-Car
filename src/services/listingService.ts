@@ -19,9 +19,9 @@ export function addToBlacklist(listingUrl: string) {
   logger.info('Post-Output Audit: Added listing to blacklist', { listingUrl });
 }
 
-function isValidListingUrl(url: string, imageUrl: string): boolean {
-  if (sessionBlacklist.has(url)) {
-    return false;
+function normalizeAutotraderListingUrl(rawUrl: string): string | null {
+  if (!rawUrl) {
+    return null;
   }
 
   if (!url ||
@@ -37,6 +37,13 @@ function isValidListingUrl(url: string, imageUrl: string): boolean {
   if (!AUTOTRADER_DETAIL_REGEX.test(url)) {
     return false;
   }
+}
+
+function isLikelyCarImage(url?: string): boolean {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  return !lowerUrl.includes('placeholder') && !lowerUrl.includes('imagin.studio') && !lowerUrl.includes('logo');
+}
 
   if (
     !imageUrl ||
@@ -51,7 +58,7 @@ function isValidListingUrl(url: string, imageUrl: string): boolean {
     return false;
   }
 
-  return true;
+  return Boolean(normalizeAutotraderListingUrl(url));
 }
 
 export async function fetchLiveListings(query: string, budget: number, originalChoice?: string, maxMileage?: number): Promise<CarListing[]> {
@@ -160,9 +167,9 @@ Return EXACTLY 5 valid listings. We need 5 to ensure we have enough options afte
         mileage: raw.mileage,
         year: raw.year,
         location: raw.location || "UK",
-        imageUrl: raw.imageUrl,
+        imageUrl: isLikelyCarImage(raw.imageUrl) ? raw.imageUrl : '',
         sourceSite: "Auto Trader", // Force Auto Trader
-        listingUrl: raw.listingUrl,
+        listingUrl: url,
         score: 95,
         confidence: "HIGH",
         tags: [

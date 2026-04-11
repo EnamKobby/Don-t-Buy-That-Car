@@ -8,7 +8,11 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const [imageError, setImageError] = useState(false);
+  const [imageError, setImageError] = useState(!listing.imageUrl);
+
+  useEffect(() => {
+    setImageError(!listing.imageUrl);
+  }, [listing.imageUrl]);
 
   useEffect(() => {
     if (imageError) {

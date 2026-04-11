@@ -134,7 +134,7 @@ export async function runPreOutputQC(listings: CarListing[], budget: number, max
         return null;
       }
 
-      // 3. Image Validation
+      // 3. Image Validation (advisory only - do not drop otherwise good listings)
       const isImageValid = await validateImage(listing.imageUrl);
       if (!isImageValid) {
         logger.warn('QC Failed: Image Validation', { listing: listing.title, reason: 'Image failed to load or is placeholder' });

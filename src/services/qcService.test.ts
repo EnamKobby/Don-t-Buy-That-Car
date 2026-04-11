@@ -71,6 +71,14 @@ describe('QC Service', () => {
       expect(result.passed).toBe(true);
     });
 
+    it('should pass for a valid car URL with query parameters', () => {
+      const result = checkListingValidity({
+        ...validListing,
+        listingUrl: 'https://www.autotrader.co.uk/car-details/202503040123456?advertising-location=at_cars'
+      });
+      expect(result.passed).toBe(true);
+    });
+
     it('should fail for generic search URLs', () => {
       expect(checkListingValidity({ ...validListing, listingUrl: 'https://www.autotrader.co.uk/car-search' }).passed).toBe(false);
       expect(checkListingValidity({ ...validListing, listingUrl: 'https://www.motors.co.uk/used-cars/' }).passed).toBe(false);
