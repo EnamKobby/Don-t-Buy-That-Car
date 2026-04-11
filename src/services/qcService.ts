@@ -14,7 +14,6 @@ export async function validateImage(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const img = new Image();
     const timeout = setTimeout(() => resolve(false), 2500);
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
       clearTimeout(timeout);
       resolve(true);
@@ -43,14 +42,15 @@ export function checkConstraintIntegrity(listing: CarListing, budget: number, ma
 
 export function checkListingValidity(listing: CarListing): QCResult {
   const url = listing.listingUrl?.toLowerCase() || '';
-  const canonicalAutotraderListing = /^https:\/\/(www\.)?autotrader\.co\.uk\/car-details\/\d{8,20}(\?.*)?$/i;
+  const canonicalAutotraderListing = /^https:\/\/(www\.)?autotrader\.co\.uk\/car-details\/\d{12,16}$/i;
   
   if (!url || 
       url === 'https://www.autotrader.co.uk/' ||
       url === 'https://www.motors.co.uk/' ||
       url.includes('/car-search') || 
       url.includes('/used-cars/') ||
-      url.includes('search?')
+      url.includes('search?') ||
+      url.includes('?')
   ) {
     return { passed: false, reason: 'Generic search link' };
   }
@@ -137,7 +137,8 @@ export async function runPreOutputQC(listings: CarListing[], budget: number, max
       // 3. Image Validation (advisory only - do not drop otherwise good listings)
       const isImageValid = await validateImage(listing.imageUrl);
       if (!isImageValid) {
-        logger.warn('QC Warning: Image Validation', { listing: listing.title, reason: 'Image failed to load or is placeholder' });
+        logger.warn('QC Failed: Image Validation', { listing: listing.title, reason: 'Image failed to load or is placeholder' });
+        return null;
       }
 
       // 4. Vibe Check Consistency
