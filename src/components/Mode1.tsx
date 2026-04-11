@@ -26,6 +26,12 @@ interface State {
   riskTolerance: string;
 }
 
+interface AlternativeSuggestion {
+  recommendedModel: string;
+  reason: string;
+  likelySavings: string;
+}
+
 const INITIAL_STATE: State = {
   budget: '',
   financeType: '',
@@ -40,6 +46,46 @@ const INITIAL_STATE: State = {
   mileageBelief: '',
   riskTolerance: '',
 };
+
+const PREMIUM_BRAND_PATTERN = /bmw|audi|mercedes|land rover|jaguar|porsche|range rover/i;
+
+function getAlternativeSuggestion(brandInput: string, budget: number): AlternativeSuggestion | null {
+  const requested = brandInput.toLowerCase();
+
+  if ((requested.includes('bmw') || requested.includes('3 series')) && budget <= 15000) {
+    return {
+      recommendedModel: 'Mazda 3',
+      reason: 'You keep most of the driving feel and quality, but reduce repair risk and servicing costs dramatically.',
+      likelySavings: 'Typically £2k–£6k cheaper to buy and lower ongoing maintenance.'
+    };
+  }
+
+  if ((requested.includes('audi') || requested.includes('a4')) && budget <= 16000) {
+    return {
+      recommendedModel: 'Skoda Octavia',
+      reason: 'Practical, reliable and comfortable with much lower cost exposure than budget premium German options.',
+      likelySavings: 'Often £2k–£5k less upfront with cheaper parts and labour.'
+    };
+  }
+
+  if ((requested.includes('mercedes') || requested.includes('c class')) && budget <= 17000) {
+    return {
+      recommendedModel: 'Honda Civic',
+      reason: 'You sacrifice badge prestige, but gain long-term reliability and better ownership economics.',
+      likelySavings: 'Commonly £2k–£5k less and fewer surprise repair bills.'
+    };
+  }
+
+  if ((requested.includes('range rover') || requested.includes('land rover')) && budget <= 20000) {
+    return {
+      recommendedModel: 'Toyota RAV4',
+      reason: 'You keep utility and comfort while significantly lowering reliability and maintenance risk.',
+      likelySavings: 'Frequently £3k–£8k lower purchase and ownership cost.'
+    };
+  }
+
+  return null;
+}
 
 export function Mode1({ onBack }: Mode1Props) {
   const [step, setStep] = useState<Step>(0);
@@ -459,6 +505,13 @@ export function Mode1({ onBack }: Mode1Props) {
 
 function Mode1Output({ state, warningsIgnored, onBack }: { state: State, warningsIgnored: number, onBack: () => void }) {
   const [isRealistic, setIsRealistic] = useState<boolean | null>(null);
+  const budgetNumber = parseInt(state.budget.replace(/[^0-9]/g, ''), 10) || 10000;
+  const mileageCap = parseInt(state.maxMileage.replace(/[^0-9]/g, ''), 10) || 60000;
+  const preferredModel = `${state.brand} ${state.carType}`.trim() || 'your target car';
+  const isPremiumTarget = PREMIUM_BRAND_PATTERN.test(state.brand);
+  const mileageStretchSuggestion = mileageCap < 70000 ? `+${(70000 - mileageCap).toLocaleString()} to ${(90000 - mileageCap).toLocaleString()} miles` : '+10,000 to 20,000 miles';
+  const budgetStretchSuggestion = budgetNumber < 15000 ? `+£${Math.max(1500, Math.round(budgetNumber * 0.15)).toLocaleString()} to +£${Math.max(3000, Math.round(budgetNumber * 0.25)).toLocaleString()}` : '+£1,500 to £3,000';
+  const alternativeSuggestion = getAlternativeSuggestion(state.brand, budgetNumber);
   let escalationLevel = 0;
   let escalationMessage = "";
 
@@ -478,6 +531,14 @@ function Mode1Output({ state, warningsIgnored, onBack }: { state: State, warning
     query = "used highly reliable low maintenance car";
   } else if (state.riskTolerance === 'high_risk_tolerance') {
     query = "used premium car";
+  }
+
+  if (alternativeSuggestion) {
+    query = `used ${alternativeSuggestion.recommendedModel} reliable`;
+  } else if (isPremiumTarget && budgetNumber < 15000) {
+    query = "used mazda 3 honda civic skoda octavia";
+  } else if (state.brand.trim()) {
+    query = `used ${state.brand} ${state.carType}`.trim();
   }
 
   return (
@@ -509,6 +570,31 @@ function Mode1Output({ state, warningsIgnored, onBack }: { state: State, warning
 
             <div className="space-y-6">
               <h2 className="text-2xl font-black uppercase">The Reality Check</h2>
+
+              {(isPremiumTarget || alternativeSuggestion) && (
+                <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-5 space-y-4">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-yellow-300">Budget-pressure warning</h3>
+                  <p className="text-sm text-yellow-100">
+                    With a budget of <span className="font-bold">£{budgetNumber.toLocaleString()}</span> for <span className="font-bold">{preferredModel}</span>,
+                    you will usually need to accept one or more trade-offs:
+                  </p>
+                  <ul className="text-sm text-yellow-100 space-y-2 list-disc pl-5">
+                    <li>Increase budget by <span className="font-bold">{budgetStretchSuggestion}</span>.</li>
+                    <li>Accept higher mileage by roughly <span className="font-bold">{mileageStretchSuggestion}</span>.</li>
+                    <li>Switch to a high-value alternative model with 80–90% of the experience at lower risk.</li>
+                  </ul>
+
+                  {alternativeSuggestion && (
+                    <div className="bg-black/30 border border-yellow-700/40 rounded p-4">
+                      <p className="text-sm text-white">
+                        Suggested alternative: <span className="font-black uppercase">{alternativeSuggestion.recommendedModel}</span>
+                      </p>
+                      <p className="text-xs text-gray-300 mt-1">{alternativeSuggestion.reason}</p>
+                      <p className="text-xs text-yellow-200 mt-2 font-semibold">{alternativeSuggestion.likelySavings}</p>
+                    </div>
+                  )}
+                </div>
+              )}
               
               <CarCard 
                 title="Your Choice"
@@ -542,11 +628,11 @@ function Mode1Output({ state, warningsIgnored, onBack }: { state: State, warning
 
             <LiveListings 
               query={query}
-              budget={parseInt(state.budget.replace(/[^0-9]/g, ''), 10) || 10000}
+              budget={budgetNumber}
               originalChoice={`${state.brand} ${state.carType}`}
               title="Expert Recommendations"
               subtitle="Based on your preferences, here is our tough-love advice:"
-              maxMileage={parseInt(state.maxMileage.replace(/[^0-9]/g, ''), 10) || undefined}
+              maxMileage={mileageCap || undefined}
             />
           </>
         )}

@@ -8,7 +8,9 @@ export const CarListingSchema = z.object({
   mileage: z.number().nonnegative(),
   year: z.number().int().min(1900).max(new Date().getFullYear() + 1),
   location: z.string().min(1),
-  imageUrl: z.string().url(),
+  imageUrl: z.string().refine((value) => value === '' || z.string().url().safeParse(value).success, {
+    message: 'Must be a valid URL or an empty string',
+  }),
   sourceSite: z.string().min(1),
   listingUrl: z.string().url(),
   score: z.number().min(0).max(100),
