@@ -30,9 +30,9 @@ describe('QC Service', () => {
     mileage: 50000,
     year: 2016,
     location: 'London',
-    imageUrl: 'https://example.com/image.jpg',
+    imageUrl: 'https://m.atcdn.co.uk/a/media/abcd1234.jpg',
     sourceSite: 'Auto Trader',
-    listingUrl: 'https://www.autotrader.co.uk/car-details/123456',
+    listingUrl: 'https://www.autotrader.co.uk/car-details/202503040123456',
     score: 95,
     confidence: 'HIGH',
     tags: ['Good Deal'],
@@ -71,10 +71,19 @@ describe('QC Service', () => {
       expect(result.passed).toBe(true);
     });
 
+    it('should pass for a valid car URL with query parameters', () => {
+      const result = checkListingValidity({
+        ...validListing,
+        listingUrl: 'https://www.autotrader.co.uk/car-details/202503040123456?advertising-location=at_cars'
+      });
+      expect(result.passed).toBe(true);
+    });
+
     it('should fail for generic search URLs', () => {
       expect(checkListingValidity({ ...validListing, listingUrl: 'https://www.autotrader.co.uk/car-search' }).passed).toBe(false);
       expect(checkListingValidity({ ...validListing, listingUrl: 'https://www.motors.co.uk/used-cars/' }).passed).toBe(false);
       expect(checkListingValidity({ ...validListing, listingUrl: 'https://example.com/search?q=civic' }).passed).toBe(false);
+      expect(checkListingValidity({ ...validListing, listingUrl: 'https://www.autotrader.co.uk/car-details/12345' }).passed).toBe(false);
     });
   });
 

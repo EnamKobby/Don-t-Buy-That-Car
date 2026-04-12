@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
-import { CarListing, addToBlacklist } from '../services/listingService';
+import { CarListing } from '../services/listingService';
 import { logger } from '../utils/logger';
 
 interface ListingCardProps {
@@ -8,7 +8,11 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const [imageError, setImageError] = useState(false);
+  const [imageError, setImageError] = useState(!listing.imageUrl);
+
+  useEffect(() => {
+    setImageError(!listing.imageUrl);
+  }, [listing.imageUrl]);
 
   useEffect(() => {
     if (imageError) {
@@ -16,9 +20,8 @@ export function ListingCard({ listing }: ListingCardProps) {
         listingId: listing.id, 
         imageUrl: listing.imageUrl 
       });
-      addToBlacklist(listing.listingUrl);
     }
-  }, [imageError, listing.id, listing.imageUrl, listing.listingUrl]);
+  }, [imageError, listing.id, listing.imageUrl]);
 
   const handleLinkClick = () => {
     logger.info('Post-Output Audit: User clicked listing link', {
@@ -27,21 +30,23 @@ export function ListingCard({ listing }: ListingCardProps) {
     });
   };
 
-  // If image fails to load, do not render the card at all (per PART 2 FAIL CONDITION)
-  if (imageError) {
-    return null;
-  }
-
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden flex flex-col">
       <div className="relative h-48 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center border-b border-gray-800">
-        <img 
-          src={listing.imageUrl} 
-          alt={listing.title} 
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-          onError={() => setImageError(true)}
-        />
+        {!imageError ? (
+          <img
+            src={listing.imageUrl}
+            alt={listing.title}
+            className="w-full h-full object-cover"
+            referrerPolicy="origin-when-cross-origin"
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-medium text-center px-4">
+            Image unavailable for this listing.<br />Open Auto Trader to view photos.
+          </div>
+        )}
         <div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2 py-1 rounded">
           {listing.sourceSite}
         </div>
@@ -119,6 +124,7 @@ export function ListingCard({ listing }: ListingCardProps) {
             target="_blank" 
             rel="noopener noreferrer"
             onClick={handleLinkClick}
+            onAuxClick={handleLinkClick}
             className="w-full flex items-center justify-center gap-2 bg-white text-black font-bold py-3 rounded hover:bg-gray-200 transition-colors"
           >
             View Listing <ExternalLink className="w-4 h-4" />

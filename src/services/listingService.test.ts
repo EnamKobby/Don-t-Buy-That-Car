@@ -36,9 +36,9 @@ vi.mock('@google/genai', () => {
               mileage: 50000,
               year: 2016,
               location: 'London',
-              imageUrl: 'https://example.com/image.jpg',
+              imageUrl: 'https://m.atcdn.co.uk/a/media/abcd1234.jpg',
               sourceSite: 'Auto Trader',
-              listingUrl: 'https://www.autotrader.co.uk/car-details/123',
+              listingUrl: 'https://www.autotrader.co.uk/car-details/202503040123456',
               adviceSnippet: 'Good car',
               exceedsBudget: false,
               exceedsMileage: false,
@@ -49,10 +49,23 @@ vi.mock('@google/genai', () => {
               mileage: 100000,
               year: 2010,
               location: 'London',
-              imageUrl: 'https://example.com/image.jpg',
+              imageUrl: 'https://m.atcdn.co.uk/a/media/abcd9999.jpg',
               sourceSite: 'Auto Trader',
               listingUrl: 'https://www.autotrader.co.uk/', // Generic URL should be filtered
               adviceSnippet: 'Bad car',
+              exceedsBudget: false,
+              exceedsMileage: false,
+            },
+            {
+              title: 'Valid URL, missing image',
+              price: 9200,
+              mileage: 81000,
+              year: 2015,
+              location: 'Bristol',
+              imageUrl: '',
+              sourceSite: 'Auto Trader',
+              listingUrl: 'https://www.autotrader.co.uk/car-details/202401010000001?fromSavedAds=true',
+              adviceSnippet: 'Still valid despite missing image metadata',
               exceedsBudget: false,
               exceedsMileage: false,
             }
@@ -77,8 +90,11 @@ describe('fetchLiveListings', () => {
     const listings = await fetchLiveListings('Honda Civic', 12000);
     
     // Should only return the valid listing
-    expect(listings).toHaveLength(1);
+    expect(listings).toHaveLength(2);
     expect(listings[0].title).toBe('2016 Honda Civic');
-    expect(listings[0].listingUrl).toBe('https://www.autotrader.co.uk/car-details/123');
+    expect(listings[0].listingUrl).toBe('https://www.autotrader.co.uk/car-details/202503040123456');
+    expect(listings[1].title).toBe('Valid URL, missing image');
+    expect(listings[1].imageUrl).toBe('');
+    expect(listings[1].listingUrl).toBe('https://www.autotrader.co.uk/car-details/202401010000001');
   });
 });

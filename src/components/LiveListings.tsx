@@ -61,17 +61,28 @@ export function LiveListings({
     setError(null);
     
     try {
-      const results = await fetchLiveListings(query, budget, originalChoice, maxMileage);
-      
       let stretchResults: CarListing[] = [];
-      if (includeStretch || results.length === 0) {
-        const stretchBudget = budget + 1500;
-        stretchResults = await fetchLiveListings(query, stretchBudget, originalChoice, maxMileage);
-        stretchResults = stretchResults.filter(r => r.price > budget * 1.1);
-      }
 
-      setListings(results);
-      setStretchListings(stretchResults);
+      if (includeStretch) {
+        const stretchBudget = budget + 1500;
+        const [results, expandedResults] = await Promise.all([
+          fetchLiveListings(query, budget, originalChoice, maxMileage),
+          fetchLiveListings(query, stretchBudget, originalChoice, maxMileage)
+        ]);
+        stretchResults = expandedResults.filter(r => r.price > budget * 1.1);
+        setListings(results);
+        setStretchListings(stretchResults);
+      } else {
+        const results = await fetchLiveListings(query, budget, originalChoice, maxMileage);
+        if (results.length === 0) {
+          const stretchBudget = budget + 1500;
+          stretchResults = await fetchLiveListings(query, stretchBudget, originalChoice, maxMileage);
+          stretchResults = stretchResults.filter(r => r.price > budget * 1.1);
+        }
+
+        setListings(results);
+        setStretchListings(stretchResults);
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.message === "API_QUOTA_EXCEEDED") {
         setError("We are experiencing high demand and have temporarily hit our search limits. Please try again in a few minutes.");
