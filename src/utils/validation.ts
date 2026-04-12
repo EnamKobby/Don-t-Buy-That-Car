@@ -12,7 +12,17 @@ export const CarListingSchema = z.object({
     message: 'Must be a valid URL or an empty string',
   }),
   sourceSite: z.string().min(1),
-  listingUrl: z.string().url(),
+  listingUrl: z.string().url().refine((value) => {
+    try {
+      const parsed = new URL(value);
+      const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+      return host === 'autotrader.co.uk' && /^\/car-details\/\d{8,20}$/i.test(parsed.pathname);
+    } catch {
+      return false;
+    }
+  }, {
+    message: 'listingUrl must be an Auto Trader car detail URL',
+  }),
   score: z.number().min(0).max(100),
   confidence: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   tags: z.array(z.string()),

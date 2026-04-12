@@ -11,7 +11,7 @@ describe('Validation Layer', () => {
     location: 'London',
     imageUrl: 'https://example.com/image.jpg',
     sourceSite: 'Auto Trader',
-    listingUrl: 'https://example.com/car-details/123',
+    listingUrl: 'https://www.autotrader.co.uk/car-details/202503040123456',
     score: 95,
     confidence: 'HIGH',
     tags: ['Good Deal'],
@@ -32,6 +32,12 @@ describe('Validation Layer', () => {
 
   it('should reject a listing with invalid URL', () => {
     const invalidListing = { ...validListing, listingUrl: 'not-a-url' };
+    const result = validateListing(invalidListing);
+    expect(result).toBeNull();
+  });
+
+  it('should reject a listing that is not an Auto Trader detail page', () => {
+    const invalidListing = { ...validListing, listingUrl: 'https://www.autotrader.co.uk/car-search?make=BMW' };
     const result = validateListing(invalidListing);
     expect(result).toBeNull();
   });
