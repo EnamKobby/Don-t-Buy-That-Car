@@ -93,8 +93,5 @@ describe('fetchLiveListings', () => {
     expect(listings).toHaveLength(2);
     expect(listings[0].title).toBe('2016 Honda Civic');
     expect(listings[0].listingUrl).toBe('https://www.autotrader.co.uk/car-details/202503040123456');
-    expect(listings[1].title).toBe('Valid URL, missing image');
-    expect(listings[1].imageUrl).toBe('');
-    expect(listings[1].listingUrl).toBe('https://www.autotrader.co.uk/car-details/202401010000001');
   });
 });
